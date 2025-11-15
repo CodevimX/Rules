@@ -20,7 +20,7 @@ jobs:
 
     - name: Add upstream remote
       run: |
-        git remote add upstream https://github.com/${{ vars.UPSTREAM_REPO }}.git
+        git remote add upstream https://github.com/BOBOLAOSHIV587/Rules.git
         git fetch upstream
 
     - name: Check for changes
