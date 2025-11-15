@@ -2,10 +2,8 @@ name: Sync from Upstream
 
 on:
   schedule:
-    # 每天UTC时间12:00运行（北京时间20:00）
     - cron: '0 12 * * *'
   workflow_dispatch:
-    # 允许手动触发
 
 jobs:
   sync:
@@ -18,55 +16,37 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
+    - name: Configure Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
     - name: Add upstream remote
       run: |
+        # 请确保这里的仓库地址是正确的！
         git remote add upstream https://github.com/BOBOLAOSHIV587/Rules.git
         git fetch upstream
 
     - name: Check for changes
       id: check
       run: |
-        git log --oneline upstream/main..main
-        if [ $(git rev-list upstream/main..main --count) -eq 0 ]; then
+        # 检查是否有差异
+        if git diff --quiet main upstream/main; then
           echo "changes=false" >> $GITHUB_OUTPUT
           echo "🟢 没有发现新更新"
         else
           echo "changes=true" >> $GITHUB_OUTPUT
           echo "🔵 发现新更新，开始同步..."
+          echo "变更的文件："
+          git diff --name-only main upstream/main
         fi
 
-    - name: Create Sync Branch
-      if: steps.check.outputs.changes == 'true'
-      run: |
-        git checkout -b sync-upstream-$(date +%Y%m%d)
-        git merge upstream/main --no-edit
-        # 基础安全扫描
-        echo "🔍 正在进行基础安全扫描..."
-        find . -name "*.js" -exec echo "检查文件: {}" \;
-        echo "✅ 基础扫描完成，请人工审查具体代码变更"
-
-    - name: Create Sync Branch
-      if: steps.check.outputs.changes == 'true'
-      run: |
-        DATE=$(date +%Y%m%d)
-        BRANCH_NAME="sync-upstream-$DATE"
-        
-        # 删除已存在的同名分支（如果存在）
-        git push origin --delete "$BRANCH_NAME" || true
-        git branch -D "$BRANCH_NAME" || true
-        
-        # 创建新分支并合并更新
-        git checkout -b "$BRANCH_NAME"
-        git merge upstream/main --no-edit -m "🔄 合并上游更新"
-        
-        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-
-    - name: Create Pull Request
+    - name: Create Pull Request with Unique Branch
       if: steps.check.outputs.changes == 'true'
       uses: peter-evans/create-pull-request@v5
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "🔄 自动同步上游更新"
+        commit-message: "🔄 自动同步上游更新 - $(date +'%Y-%m-%d')"
         title: "🔄 自动同步更新 - $(date +'%Y-%m-%d')"
         body: |
           本次自动同步来自上游仓库的更新，请仔细审查以下内容：
@@ -81,6 +61,6 @@ jobs:
           请查看下面的文件差异，确认安全后合并此PR。
 
           > **重要**：合并后Loon将自动使用更新后的脚本
-        branch: "${{ env.BRANCH_NAME }}"
+        branch: "sync-upstream-$(date +%Y%m%d-%H%M%S)"
         base: main
         labels: "auto-sync,security-review"
