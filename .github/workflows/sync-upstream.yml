@@ -49,9 +49,17 @@ jobs:
       if: steps.check.outputs.changes == 'true'
       run: |
         DATE=$(date +%Y%m%d)
-        git checkout -b "sync-upstream-$DATE"
-        git merge upstream/main --no-edit
-        echo "BRANCH_NAME=sync-upstream-$DATE" >> $GITHUB_ENV
+        BRANCH_NAME="sync-upstream-$DATE"
+        
+        # 删除已存在的同名分支（如果存在）
+        git push origin --delete "$BRANCH_NAME" || true
+        git branch -D "$BRANCH_NAME" || true
+        
+        # 创建新分支并合并更新
+        git checkout -b "$BRANCH_NAME"
+        git merge upstream/main --no-edit -m "🔄 合并上游更新"
+        
+        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
     - name: Create Pull Request
       if: steps.check.outputs.changes == 'true'
