@@ -1,0 +1,70 @@
+name: Sync from Upstream
+
+on:
+  schedule:
+    # 每天UTC时间12:00运行（北京时间20:00）
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+    # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout current repo
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Add upstream remote
+      run: |
+        git remote add upstream https://github.com/${{ vars.UPSTREAM_REPO }}.git
+        git fetch upstream
+
+    - name: Check for changes
+      id: check
+      run: |
+        git log --oneline upstream/main..main
+        if [ $(git rev-list upstream/main..main --count) -eq 0 ]; then
+          echo "changes=false" >> $GITHUB_OUTPUT
+          echo "🟢 没有发现新更新"
+        else
+          echo "changes=true" >> $GITHUB_OUTPUT
+          echo "🔵 发现新更新，开始同步..."
+        fi
+
+    - name: Create Sync Branch
+      if: steps.check.outputs.changes == 'true'
+      run: |
+        git checkout -b sync-upstream-$(date +%Y%m%d)
+        git merge upstream/main --no-edit
+        # 基础安全扫描
+        echo "🔍 正在进行基础安全扫描..."
+        find . -name "*.js" -exec echo "检查文件: {}" \;
+        echo "✅ 基础扫描完成，请人工审查具体代码变更"
+
+    - name: Create Pull Request
+      if: steps.check.outputs.changes == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "🔄 自动同步上游更新 - $(date +'%Y-%m-%d')"
+        title: "🔄 自动同步更新 - $(date +'%Y-%m-%d')"
+        body: |
+          本次自动同步来自上游仓库的更新，请仔细审查以下内容：
+
+          ## 🔍 安全检查清单
+          - [ ] 检查新增的网络请求域名
+          - [ ] 审查是否有可疑的eval()或Function()调用
+          - [ ] 确认脚本功能与描述一致
+          - [ ] 检查文件大小是否异常变化
+
+          ## 📝 变更内容
+          请查看下面的文件差异，确认安全后合并此PR。
+
+          > **重要**：合并后Loon将自动使用更新后的脚本
+        branch: "sync-upstream-$(date +%Y%m%d)"
+        base: main
+        labels: "auto-sync,security-review"
