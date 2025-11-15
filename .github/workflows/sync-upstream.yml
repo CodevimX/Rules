@@ -45,12 +45,20 @@ jobs:
         find . -name "*.js" -exec echo "检查文件: {}" \;
         echo "✅ 基础扫描完成，请人工审查具体代码变更"
 
+    - name: Create Sync Branch
+      if: steps.check.outputs.changes == 'true'
+      run: |
+        DATE=$(date +%Y%m%d)
+        git checkout -b "sync-upstream-$DATE"
+        git merge upstream/main --no-edit
+        echo "BRANCH_NAME=sync-upstream-$DATE" >> $GITHUB_ENV
+
     - name: Create Pull Request
       if: steps.check.outputs.changes == 'true'
       uses: peter-evans/create-pull-request@v5
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "🔄 自动同步上游更新 - $(date +'%Y-%m-%d')"
+        commit-message: "🔄 自动同步上游更新"
         title: "🔄 自动同步更新 - $(date +'%Y-%m-%d')"
         body: |
           本次自动同步来自上游仓库的更新，请仔细审查以下内容：
@@ -65,6 +73,6 @@ jobs:
           请查看下面的文件差异，确认安全后合并此PR。
 
           > **重要**：合并后Loon将自动使用更新后的脚本
-        branch: "sync-upstream-$(date +%Y%m%d)"
+        branch: "${{ env.BRANCH_NAME }}"
         base: main
         labels: "auto-sync,security-review"
