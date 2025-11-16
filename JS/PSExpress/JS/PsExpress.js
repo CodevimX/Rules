@@ -1,16 +1,26 @@
 // =============================================
 // Adobe Creative Cloud 授权修复脚本 for Loon
-// 修复 lcs-mobile-cops.adobe.io 的过期授权响应
+// 增强版 - 更宽松的 URL 匹配
 // =============================================
 
 (function() {
     'use strict';
     
-    // 检查是否为目标响应
+    console.log("🔧 Adobe 授权修复脚本开始执行");
+    console.log("📝 请求URL: " + $request.url);
+    
+    // 检查是否为目标域名
+    if (!$request.url.includes('lcs-mobile-cops.adobe.io')) {
+        console.log("❌ 非目标域名，跳过处理");
+        return;
+    }
+    
+    // 检查响应状态和内容
     if ($response.status !== 200) {
         console.log("❌ 响应状态码非200: " + $response.status);
         return;
     }
+    
     if (!$response.body) {
         console.log("❌ 响应体为空");
         return;
@@ -18,7 +28,7 @@
     
     try {
         let body = JSON.parse($response.body);
-        console.log("🔧 开始处理 Adobe 授权响应");
+        console.log("✅ 响应体解析成功");
         
         // 检查是否存在 asnp.payload
         if (body.asnp && body.asnp.payload) {
@@ -39,8 +49,7 @@
                     // 检测是否为需要修复的授权响应
                     const needsRepair = 
                         payloadObj.profileStatus === "PROFILE_EXPIRED" || 
-                        payloadObj.profileStatusReason === 2000 ||
-                        (payloadObj.controlProfile && payloadObj.controlProfile.validUptoTimestamp < Math.floor(Date.now() / 1000));
+                        payloadObj.profileStatusReason === 2000;
                     
                     if (needsRepair) {
                         console.log("🔄 检测到需要修复的授权状态，开始修复...");
@@ -57,7 +66,8 @@
                             console.log("⏰ 新过期时间: 2030-01-01");
                             
                             // 更新响应体
-                            $response.body = JSON.stringify(body);
+                            $done({ body: JSON.stringify(body) });
+                            return;
                         } else {
                             console.log("❌ Base64 编码失败");
                         }
@@ -78,15 +88,15 @@
         console.log("❌ 脚本执行错误: " + error.message);
     }
     
+    // 如果没有修改，保持原响应
     $done({});
 })();
 
 // =============================================
-// Adobe 授权修复核心函数
+// 以下修复函数保持不变（与之前相同）
 // =============================================
 function repairAdobeLicense(originalBody) {
     const expireTimeMs = 1893452800000; // 2030-01-01 00:00:00 毫秒
-    const expireTimeSec = 1893452800;   // 2030-01-01 00:00:00 秒
     
     console.log("🔧 开始修复授权数据...");
     
@@ -104,7 +114,7 @@ function repairAdobeLicense(originalBody) {
             if (item.source) {
                 item.source.type = "LICENSE";
                 item.source.status_reason = "NORMAL";
-                item.source.can_access_until = expireTimeMs; // 毫秒时间戳
+                item.source.can_access_until = expireTimeMs;
                 console.log(`✅ 修复可访问项目 ${index} 完成`);
             }
             if (item.fulfillable_items) {
@@ -115,12 +125,11 @@ function repairAdobeLicense(originalBody) {
     
     // 修复控制配置文件
     if (originalBody.controlProfile) {
-        originalBody.controlProfile.validUptoTimestamp = expireTimeMs; // 毫秒时间戳
+        originalBody.controlProfile.validUptoTimestamp = expireTimeMs;
         originalBody.controlProfile.cacheLifetime = 39970872755;
         
-        // 修复缓存过期警告时间
         if (originalBody.controlProfile.cacheExpiryWarningControl) {
-            originalBody.controlProfile.cacheExpiryWarningControl.warningStartTimestamp = expireTimeMs - (30 * 24 * 60 * 60 * 1000); // 提前30天警告
+            originalBody.controlProfile.cacheExpiryWarningControl.warningStartTimestamp = expireTimeMs - (30 * 24 * 60 * 60 * 1000);
         }
         
         console.log("✅ 控制配置文件修复完成");
@@ -130,7 +139,7 @@ function repairAdobeLicense(originalBody) {
     if (originalBody.legacyProfile && typeof originalBody.legacyProfile === "string") {
         try {
             const legacyObj = JSON.parse(originalBody.legacyProfile);
-            legacyObj.effectiveEndTimestamp = expireTimeMs; // 毫秒时间戳
+            legacyObj.effectiveEndTimestamp = expireTimeMs;
             legacyObj.enigmaData.productId = 204;
             legacyObj.enigmaData.isk = 2044017;
             legacyObj.enigmaData.rb = false;
@@ -138,7 +147,6 @@ function repairAdobeLicense(originalBody) {
             console.log("✅ 传统配置文件修复完成");
         } catch (e) {
             console.log("⚠️ 传统配置文件解析失败: " + e.message);
-            // 创建新的传统配置文件
             originalBody.legacyProfile = JSON.stringify({
                 "licenseId": generateLicenseId(),
                 "licenseType": 3,
@@ -167,9 +175,6 @@ function repairAdobeLicense(originalBody) {
     return originalBody;
 }
 
-// =============================================
-// 功能项修复
-// =============================================
 function repairFulfillableItems(originalItems) {
     console.log("🔧 修复功能项...");
     
@@ -229,15 +234,11 @@ function repairFulfillableItems(originalItems) {
         }
     };
     
-    // 合并但优先使用基础项目（覆盖原有的受限功能）
     const result = Object.assign({}, originalItems, baseItems);
     console.log("✅ 功能项修复完成");
     return result;
 }
 
-// =============================================
-// Base64 编解码函数
-// =============================================
 function base64Decode(input) {
     try {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
@@ -290,16 +291,10 @@ function base64Encode(input) {
     }
 }
 
-// =============================================
-// 辅助函数
-// =============================================
-
-// 生成许可证 ID
 function generateLicenseId() {
     return Math.random().toString(36).substr(2, 16).toUpperCase();
 }
 
-// 生成序列号
 function generateSerialKey() {
     let key = '';
     for (let i = 0; i < 24; i++) {
@@ -308,7 +303,6 @@ function generateSerialKey() {
     return key;
 }
 
-// 生成清除序列号
 function generateClearSerialKey() {
     let key = '';
     for (let i = 0; i < 20; i++) {
