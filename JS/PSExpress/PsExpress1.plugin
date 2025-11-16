@@ -12,6 +12,3 @@ http-response https://lcs-mobile-cops.adobe.io/mobiles/access_profile/v3 script-
 
 [MITM]
 hostname = lcs-mobile-cops.adobe.io
-
-[Rule]
-DOMAIN,lcs-mobile-cops.adobe.io,REJECT
