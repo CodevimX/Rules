@@ -344,6 +344,13 @@ if ($response.body) {
         type: "vip",
       },
       {
+        sku_key: "vip_ai",
+        expire_time: XiaoMaoEndTime,
+        effect_time: 1567334996,
+        name: "WPS AI会员",
+        type: "vip",
+      },
+      {
         sku_key: "cloud_space",
         expire_time: XiaoMaoEndTime,
         effect_time: 1678785508,
