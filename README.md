@@ -61,9 +61,39 @@
 
     8、）YouTube(Music)Enhance文件夹：适配Surge专用的YouTube(Music)增强脚本；
 
+4、Loon后缀说明 ：
 
+.lsr意为Loon Shunt Rules的缩写，即Loon分流规则。
 
-4、特别感谢：以下排名不分先后顺序
+.lpx意为Loon Plugin Extension的缩写，即Loon插件扩展。
+
+.ltx意为Loon Task Extension的缩写，即Loon任务扩展。
+
+.lcf意为Loon Configuration File的缩写，即Loon配置文件。
+
+.jq是复写使用的JQLang命令文件，多行带注释的JQ命令写入文件后使用此文件扩展名。
+
+5、官方文档地址：https://nsloon.app/docs/intro
+
+General
+
+节点格式
+
+规则格式
+
+复写格式
+
+脚本格式
+
+脚本API
+
+DNS格式
+
+插件格式
+
+scheme格式
+
+6、特别感谢：以下排名不分先后顺序
  * [afengye](https://github.com/afengye)
  * [blackmatrix7](https://github.com/blackmatrix7)
  * [Yu9191](https://github.com/Yu9191)
